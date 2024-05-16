@@ -9,7 +9,7 @@ import BiasScan
 import numpy as np
 import os
 #import all functions from T4U read
-iniFile = ("T4UParsPD.ini")
+iniFile = ("config/T4UParsPD.ini")
 ini = pd.read_csv(iniFile, header="infer")
 
 def main(argv):

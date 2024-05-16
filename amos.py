@@ -8,7 +8,7 @@
 # 'C' to record the current X,Y,Z motor positions as the new Center in the INI file.
 #  Use text scroll bars [------|----] to show the relative position using A,B,C,D values
 #########################
-###import T4U_read
+import T4U_read
 import sys
 import moveAxis
 import time
@@ -22,8 +22,22 @@ import keyboard
 global_quit  = False
 global_keypressed = ""
 global_paused = False
+selectedMotor = 0
+stepSize = 10
+
 motors = [None, None, None]
 
+class DummyMotor:
+    def __init__(self, name) -> None:
+        self.name = name
+        self.pos = 1.0
+    def get_position(self):
+        return 1000
+    def get_real_value_from_device_unit(self, pos , whatevs):
+        return self.pos   
+    def move_relative(self, dx):
+        self.pos += dx
+    
 
 def on_key_press(event):
     global global_quit, global_keypressed
@@ -43,13 +57,15 @@ def move_motor(axis, stepsize):
 def handle_keys():
     global global_keypressed
     global global_paused
+    global selectedMotor
+    global stepSize
     
     if global_keypressed == 'x':
-        selectedMotor = 1
+        selectedMotor = 0
     elif global_keypressed == 'y':
-        selectedMotor = 2
+        selectedMotor = 1
     elif global_keypressed == 'z':
-        selectedMotor = 3
+        selectedMotor = 2
     elif global_keypressed == '1':
         stepSize = 1
     elif global_keypressed == '2':
@@ -59,9 +75,11 @@ def handle_keys():
     elif global_keypressed == '+':
         move_motor(selectedMotor, stepSize)
     elif global_keypressed == '-':
-        move_motor(selectedMotor, stepSize)
+        move_motor(selectedMotor, -stepSize)
     elif global_keypressed == 'P':
         global_paused =  not global_paused
+        
+    global_keypressed = ""     
 
         
 
@@ -111,6 +129,7 @@ def generate_bar_graph(x):
 
 
 def main(argv):
+    global selectedMotor
     repeat = 0
     bQuery = 1
     T4U_read.sendCommand( thecomport, "wr 3 0", 1 )
@@ -145,15 +164,18 @@ def main(argv):
             ypos = (abs(A + D)  - abs(B + C )) / sum
             barH = generate_bar_graph(xpos)
             barV = generate_bar_graph(ypos)
-            pos= []
-            real= []
+            pos= [None, None, None]
+            real= [None, None, None]
             for i in range(3):
                 pos[i] = motors[i].get_position()
                 real[i] = motors[i].get_real_value_from_device_unit(pos[i], 'DISTANCE')
             
+            smx = "[MX]" if selectedMotor == 0 else "mx"
+            smy = "[MY]" if selectedMotor == 1 else "my"
+            smz = "[MZ]" if selectedMotor == 2 else "mz"
             
             print( f"{A:06d}  {B:06d}  {C:06d}  {D:06d}   X:[{barH}] Y:[{barV}]  "
-                  f"MX:{real[0]:06f}  MY:{real[1]:06f}   MZ:{real[2]:06f}", end="")
+                  f"{smx}:{real[0]:8.4f}  {smy}:{real[1]:8.4f}   {smz}:{real[2]:8.4f}        \r", end="")
             
             
             
@@ -178,16 +200,24 @@ def main(argv):
 if __name__ == "__main__":
     
     keyboard.on_press(on_key_press)
-    
-    
-    if 1: 
-        test_the_code()
-        exit()
+    thecomport = None
 
-    iniFile = ("T4UParsPD.ini")
+    if 1: 
+        #test_the_code()
+        #exit()
+        motors[0] = DummyMotor('X')
+        motors[1] = DummyMotor('Y')
+        motors[2] = DummyMotor('Y')
+    
+        argv = sys.argv
+        main(argv[1:])   # Use 'q' . Dont ctrl-c out of this!
+        exit() 
+        
+    iniFile = ("config/T4UParsPD.ini")
     ini = pd.read_csv(iniFile, header="infer")
     thecomport= ini.loc[0,"COM"]
-
+        
+    
     motors[0] = moveAxis.setup( moveAxis.motorX)
     motors[1] = moveAxis.setup( moveAxis.motorY)
     motors[2] = moveAxis.setup( moveAxis.motorZ)

@@ -8,7 +8,7 @@ import time
 #import all functions from T4U read
 import pandas as pd 
 
-iniFile = ("T4UParsPD.ini")
+iniFile = ("config/T4UParsPD.ini")
 ini = pd.read_csv(iniFile, header="infer")
 thecomport= ini.loc[0,"COM"]
 

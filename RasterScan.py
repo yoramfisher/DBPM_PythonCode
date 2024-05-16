@@ -22,7 +22,7 @@ import pandas as pd
 #
 # Edit values below
 #
-iniFile = ("T4UParsPD.ini")
+iniFile = ("config/T4UParsPD.ini")
 ini = pd.read_csv(iniFile, header="infer")
 
 guesscenterX = ini.loc[0,"x"]

@@ -24,7 +24,7 @@ stepv  = 0.1
 
 path_to_file = 'bscan.txt'
 
-iniFile = ("T4UParsPD.ini")
+iniFile = ("config/T4UParsPD.ini")
 ini = pd.read_csv(iniFile, header="infer")
 guesscenterX = ini.loc[0,"x"]
 guesscenterY = ini.loc[0,"y"]

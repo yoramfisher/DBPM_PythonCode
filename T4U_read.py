@@ -9,11 +9,6 @@ import time
 import sys
 import pandas as pd
 
-
-iniFile = ("T4UParsPD.ini")
-ini = pd.read_csv(iniFile, header="infer")
-thecomport= ini.loc[0,"COM"]
-#thecomport = "com18"
 verbose = 0
 
 
@@ -95,6 +90,10 @@ def readvl():
 #BWM New feature for passing comport in read command 6/15/23
 #######################
 def readvlwc(comport):
+   
+   if comport is None:
+      return { "ch1": 1000, "ch2":2000, "ch3":1500, "ch4":2100 } # simulated data
+   
    resp = sendCommand( comport, "read", 1 )
    #returns: read>173, 247, 298, 216:OK
    if verbose:
@@ -210,6 +209,11 @@ if __name__ == "__main__":
    if len(sys.argv) <= 1:
       ShowHelp()
       sys.exit()
+
+   iniFile = ("config/T4UParsPD.ini")
+   ini = pd.read_csv(iniFile, header="infer")
+   thecomport= ini.loc[0,"COM"]
+   #thecomport = "com18"
 
    verbose =1
    argv = sys.argv
