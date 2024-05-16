@@ -14,27 +14,78 @@ import moveAxis
 import time
 #import all functions from T4U read
 import pandas as pd 
+import keyboard
 
-iniFile = ("T4UParsPD.ini")
-ini = pd.read_csv(iniFile, header="infer")
-thecomport= ini.loc[0,"COM"]
+# Requires
+# pip install keyboard
 
+global_quit  = False
+global_keypressed = ""
+global_paused = False
+motors = [None, None, None]
+
+
+def on_key_press(event):
+    global global_quit, global_keypressed
+    
+    if event.name == 'q':
+        keyboard.unhook_all()
+        global_quit = True
+        
+    global_keypressed = event.name
+        
+
+def move_motor(axis, stepsize):
+    if (axis >= 0) and ( axis < len(motors) ):
+        motors[axis].move_relative( stepsize )
+
+
+def handle_keys():
+    global global_keypressed
+    global global_paused
+    
+    if global_keypressed == 'x':
+        selectedMotor = 1
+    elif global_keypressed == 'y':
+        selectedMotor = 2
+    elif global_keypressed == 'z':
+        selectedMotor = 3
+    elif global_keypressed == '1':
+        stepSize = 1
+    elif global_keypressed == '2':
+        stepSize = 10
+    elif global_keypressed == '3':
+        stepSize = 100
+    elif global_keypressed == '+':
+        move_motor(selectedMotor, stepSize)
+    elif global_keypressed == '-':
+        move_motor(selectedMotor, stepSize)
+    elif global_keypressed == 'P':
+        global_paused =  not global_paused
+
+        
 
 def test_the_code():
+    global global_quit
     import random
-    for i in range(100):
-        xpos  = (i - 50) / 100
-        ypos  = (i - 50) / 100 
-        A = int(random.randint(-10000, 10000))
-        B = int(random.randint(-10000, 10000))
-        C = int(random.randint(-10000, 10000))
-        D = int(random.randint(-10000, 10000))
-        
-        barH = generate_bar_graph(xpos)
-        barV = generate_bar_graph(ypos)
+    while not global_quit:
+        for i in range(100):
+            
+            ret = handle_keys( )
+            if global_quit:
+                break
+            xpos  = (i - 50) / 100
+            ypos  = (i - 50) / 100 
+            A = int(random.randint(-10000, 10000))
+            B = int(random.randint(-10000, 10000))
+            C = int(random.randint(-10000, 10000))
+            D = int(random.randint(-10000, 10000))
+            
+            barH = generate_bar_graph(xpos)
+            barV = generate_bar_graph(ypos)
 
-        print( f"{A:06d} {B:06d} {C:06d} {D:06d} {barH} {barV} \r", end="")
-        time.sleep(.1)
+            print( f"{A:06d} {B:06d} {C:06d} {D:06d} {barH} {barV} \r", end="")
+            time.sleep(.1)
 
 
 
@@ -57,6 +108,8 @@ def generate_bar_graph(x):
     
     return bar_graph
 
+
+
 def main(argv):
     repeat = 0
     bQuery = 1
@@ -71,6 +124,14 @@ def main(argv):
     print("  P to Pause / Unpause. When paused, motor and COM port are free'd")
 
     while True:  
+        
+        ret = handle_keys( )
+        if global_quit:
+            break
+            
+        if global_paused:
+            continue
+            
         if len(argv)<1:
             resp = T4U_read.readvlwc(thecomport)
             A = resp["ch1"]
@@ -84,11 +145,16 @@ def main(argv):
             ypos = (abs(A + D)  - abs(B + C )) / sum
             barH = generate_bar_graph(xpos)
             barV = generate_bar_graph(ypos)
+            pos= []
+            real= []
+            for i in range(3):
+                pos[i] = motors[i].get_position()
+                real[i] = motors[i].get_real_value_from_device_unit(pos[i], 'DISTANCE')
             
-            motorsPos = moveAxis.pollMotorStatus(doPrint=0)
             
             print( f"{A:06d}  {B:06d}  {C:06d}  {D:06d}   X:[{barH}] Y:[{barV}]  "
-                  f"MX:{motorsPos[0]:06f}  MY:{motorsPos[1]:06f} ", end="")
+                  f"MX:{real[0]:06f}  MY:{real[1]:06f}   MZ:{real[2]:06f}", end="")
+            
             
             
             
@@ -104,13 +170,33 @@ def main(argv):
 
 
 
+
+
 #
 #
 #
 if __name__ == "__main__":
     
-   ##test_the_code()
-   ##exit()
-   
-   argv = sys.argv
-   main(argv[1:])
+    keyboard.on_press(on_key_press)
+    
+    
+    if 1: 
+        test_the_code()
+        exit()
+
+    iniFile = ("T4UParsPD.ini")
+    ini = pd.read_csv(iniFile, header="infer")
+    thecomport= ini.loc[0,"COM"]
+
+    motors[0] = moveAxis.setup( moveAxis.motorX)
+    motors[1] = moveAxis.setup( moveAxis.motorY)
+    motors[2] = moveAxis.setup( moveAxis.motorZ)
+    
+    
+    
+    argv = sys.argv
+    main(argv[1:])   # Use 'q' . Dont ctrl-c out of this!
+    
+    for i in range(3):
+        motors[i].close()
+        
