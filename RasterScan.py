@@ -236,7 +236,7 @@ def scan( fname):
     if zmotor:
         moveAxis.close(zmotor)
 #
-#  Utility to convert original data files into something latex can parse moer easily
+#  Utility to convert original data files into something latex can parse more easily
 #
 def doConvert(fin,  convertType):
     """ convertType is a string. Expect one of:hscan, vscan, raster, <future:bias, zscan>

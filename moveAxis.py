@@ -2,7 +2,7 @@ import sys
 import os
 from pprint import pprint
 
-if 1:
+if 0:
     from msl.equipment import EquipmentRecord, ConnectionRecord, Backend
     from msl.equipment.resources.thorlabs import MotionControl
 
