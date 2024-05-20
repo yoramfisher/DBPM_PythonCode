@@ -1,6 +1,7 @@
 import sys
 import os
 from pprint import pprint
+import time
 
 if 1:
     from msl.equipment import EquipmentRecord, ConnectionRecord, Backend
@@ -102,6 +103,16 @@ def move(motor,  pos):
     ##print('Moving done. At position {} [device units]'.format(motor.get_position()))
 
 
+
+def trysetup( sn ):
+    for nTries in range(5):
+        try:
+            return setup(sn)
+        except Exception as e:        
+            print("oops exception")    
+            time.sleep(1)
+        
+        
 def setup( sn ):
     """ Returns motor
     """

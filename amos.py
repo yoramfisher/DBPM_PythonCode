@@ -21,6 +21,8 @@ import time
 import pandas as pd 
 import keyboard
 
+from math import fsum 
+
 import RasterScan as RS
 import random
 
@@ -28,11 +30,14 @@ import random
 # pip install keyboard
 VERBOSE = 1
 
+NUM_TO_AVE = 25
+
 # MAKE SURE THESE ARE SET TO ZERO FOR REAL DATA!
 TEST_WITH_DUMMY_MOTORS = 0
 TEST_WITH_DUMMY_T4U = 0
 
 
+STEPS_PER_MM = 2.1739e6
 
 
 class DummyMotor:
@@ -74,22 +79,38 @@ class Controller:
         self.comport= self.ini.loc[0,"COM"]
         self.bias1V = float(self.ini.loc[0,"s1v"])
         self.bias2V = float(self.ini.loc[0,"s2v"])
+        
+        if TEST_WITH_DUMMY_T4U:
+            self.x = 0
+            self.y = 0
+            self.dx = .011
+            self.dy = .022
+            
     
     
     def on_key_press(self, event):        
-        if event.name == 'q':
+        if event.name == 'Q':
             keyboard.unhook_all()
             self.quit = True
             
         self.keypressed = event.name
             
     def read_t4u(self):
-        
+
         if TEST_WITH_DUMMY_T4U:
-            A = int(random.randint(-10000, 10000))
-            B = int(random.randint(-10000, 10000))
-            C = int(random.randint(-10000, 10000))
-            D = int(random.randint(-10000, 10000))
+            if  (self.x + self.dx > 10000) or (self.x+self.dx < 0) :
+                self.dx = -self.dx 
+            if  (self.y + self.dy > 10000) or (self.y+self.dy < 0) :
+                self.dy = -self.dy 
+
+            self.x += self.dx
+            self.y += self.dy
+            
+            A = 1.1*(self.x + self.y)
+            B = 1.2*(self.x - self.y)
+            C = 1.3*(-self.x -self.y)
+            D = 1.4*(-self.x + self.y)
+                    
             return    (A, B, C, D)
         
         if self.ser:
@@ -108,6 +129,7 @@ class Controller:
     def move_motor(self, axis, stepsize):
         if (axis >= 0) and ( axis < len(self.motors) ):
             self.motors[axis].move_relative( stepsize )
+            moveAxis.wait( self.motors[axis] )
 
     def handle_pause( self, p ):
         if p:
@@ -132,13 +154,13 @@ class Controller:
         elif self.keypressed == 'z':
             self.selectedMotor = 2
         elif self.keypressed == '1':
-            self.stepSize = 10
+            self.stepSize = STEPS_PER_MM * 0.001  # 1 um
         elif self.keypressed == '2':
-            self.stepSize = 100
+            self.stepSize = STEPS_PER_MM * 0.01
         elif self.keypressed == '3':
-            self.stepSize = 1000
+            self.stepSize = STEPS_PER_MM * 0.1
         elif self.keypressed == '4':
-            self.stepSize = 10000
+            self.stepSize = STEPS_PER_MM          # 1 mm
 
         elif self.keypressed == '+':
             self.move_motor(self.selectedMotor, self.stepSize)
@@ -148,7 +170,8 @@ class Controller:
             self.paused =  not self.paused
             self.handle_pause( self.paused) 
             
-        elif ( self.keypressed == 'H'  or  self.keypressed == 'V' or self.keypressed == 'R'):
+        elif ( self.keypressed == 'H'  or  self.keypressed == 'V' 
+              or self.keypressed == 'R' or self.keypressed == 'Z'):
             self.paused = True
             self.handle_pause( self.paused) 
             if self.keypressed == 'H':
@@ -157,6 +180,8 @@ class Controller:
                 cmd = "-vscan"    
             elif self.keypressed == 'R':
                 cmd = "-raster"    
+            elif self.keypressed == 'Z':
+                cmd = "-zscan"    
                 
             self.write_to_config()    
             RS.scanner (cmd, self.bias1V) 
@@ -242,9 +267,9 @@ class Controller:
             self.motors[1] = DummyMotor('Y')
             self.motors[2] = DummyMotor('Y')
         else:   
-            self.motors[0] = moveAxis.setup( moveAxis.motorX)
-            self.motors[1] = moveAxis.setup( moveAxis.motorY)
-            self.motors[2] = moveAxis.setup( moveAxis.motorZ)
+            self.motors[0] = moveAxis.trysetup( moveAxis.motorX)
+            self.motors[1] = moveAxis.trysetup( moveAxis.motorY)
+            self.motors[2] = moveAxis.trysetup( moveAxis.motorZ)
 
     def close_motors(self):
         for i in range(3):
@@ -279,14 +304,18 @@ class Controller:
                 
             
         
-        print("Press 'X,Y,Z' to select a motor.   Press '1,2,3,4' to select step size of 10,100,1000,10000")
+        # TODO: how many steps per mm?   use 1um, 10um , 100um, 1000um steps 
+        print("Press 'x,y,z' to select a motor.   Press '1,2,3,4' to select step size of 1, 10, 100, 1000um")
         print("   Use '+/-' to move selected motor.")
         print("Press: ")
         print("  C to set current position to be the new Center.")
         print("  P to Pause / Unpause. When paused, motor and COM port are free'd")
         print("  H to run an HScan from this position")
         print("  V to run a VScan from this position")
+        print("  Z to run a Z-Scan from this position")
         print("  R to run a RasterScan from this position")
+        print("\n\n   Q to quit.")
+        
              
 
         while True:  
@@ -303,16 +332,19 @@ class Controller:
                 or (self.motors[2] == None):
                 continue
             
-            A,B,C,D = self.read_t4u()
-            sum = A + B + C + D
+            
+            vec = [self.read_t4u() for _ in range(NUM_TO_AVE)]
+            A, B, C, D = [int( round(fsum(x) / len(vec))) for x in zip(*vec)]
+                
             #  !!!!!
             # This isn't technically correct - it should probaby be (C + D - A - B)/sum - but the 
             # other plot codes use abs() as shown.
             # !!!!!!
+            sum = A + B + C + D
             if sum == 0:
                 sum = .0001    # hack
-            xpos = (abs(C + D)  - abs(A + B )) / sum
-            ypos = (abs(A + D)  - abs(B + C )) / sum
+            xpos = ((C + D)  - (A + B )) / sum
+            ypos = ((A + D)  - (B + C )) / sum
             barH = self.generate_bar_graph(xpos)
             barV = self.generate_bar_graph(ypos)
             pos= [None, None, None]
