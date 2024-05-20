@@ -29,8 +29,8 @@ import random
 VERBOSE = 1
 
 # MAKE SURE THESE ARE SET TO ZERO FOR REAL DATA!
-TEST_WITH_DUMMY_MOTORS = 1
-TEST_WITH_DUMMY_T4U = 1
+TEST_WITH_DUMMY_MOTORS = 0
+TEST_WITH_DUMMY_T4U = 0
 
 
 
@@ -132,11 +132,14 @@ class Controller:
         elif self.keypressed == 'z':
             self.selectedMotor = 2
         elif self.keypressed == '1':
-            self.stepSize = 1
-        elif self.keypressed == '2':
             self.stepSize = 10
-        elif self.keypressed == '3':
+        elif self.keypressed == '2':
             self.stepSize = 100
+        elif self.keypressed == '3':
+            self.stepSize = 1000
+        elif self.keypressed == '4':
+            self.stepSize = 10000
+
         elif self.keypressed == '+':
             self.move_motor(self.selectedMotor, self.stepSize)
         elif self.keypressed == '-':
@@ -276,7 +279,7 @@ class Controller:
                 
             
         
-        print("Press 'X,Y,Z' to select a motor.   Press '1,2,3' to select step size of 1,10,100")
+        print("Press 'X,Y,Z' to select a motor.   Press '1,2,3,4' to select step size of 10,100,1000,10000")
         print("   Use '+/-' to move selected motor.")
         print("Press: ")
         print("  C to set current position to be the new Center.")
