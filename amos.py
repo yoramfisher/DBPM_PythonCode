@@ -30,7 +30,7 @@ import random
 # pip install keyboard
 VERBOSE = 1
 
-NUM_TO_AVE = 25
+NUM_TO_AVE = 100
 
 # MAKE SURE THESE ARE SET TO ZERO FOR REAL DATA!
 TEST_WITH_DUMMY_MOTORS = 0
@@ -79,6 +79,7 @@ class Controller:
         self.comport= self.ini.loc[0,"COM"]
         self.bias1V = float(self.ini.loc[0,"s1v"])
         self.bias2V = float(self.ini.loc[0,"s2v"])
+        self.center = [None, None, None]
         
         if TEST_WITH_DUMMY_T4U:
             self.x = 0
@@ -116,20 +117,31 @@ class Controller:
         if self.ser:
             resp = T4U_read.send( self.ser, "read", 1 )
             #returns: read>173, 247, 298, 216:OK
-            a = resp[5:] # remove 'read>'
-            b = a.split(':')
-            c= b[0].split(',')
-
-            return  ( int(c[0]), int(c[1]), int(c[2]), int(c[3]) )
+            if len(resp)>5:
+                a = resp[5:] # remove 'read>'
+                b = a.split(':')
+                c= b[0].split(',')
+                if len(c) == 4:
+                    return  ( int(c[0]), int(c[1]), int(c[2]), int(c[3]) )
+            
+            return(-1,-1,-1,-1) # error!
 
         else:
             return (0,0,0,0)
 
 
     def move_motor(self, axis, stepsize):
+        stepsize = int(stepsize)
         if (axis >= 0) and ( axis < len(self.motors) ):
             self.motors[axis].move_relative( stepsize )
             moveAxis.wait( self.motors[axis] )
+
+
+    def move_to_center(self, moveWhichAxis = [1,1,1]):
+        for i in range(3):
+            if self.center[i] and (moveWhichAxis[i] == 1):
+                moveAxis.move( self.motors[i], self.center[i])
+                
 
     def handle_pause( self, p ):
         if p:
@@ -146,49 +158,63 @@ class Controller:
                 
             
 
-    def handle_keys(self):        
-        if self.keypressed == 'x':
+    def handle_keys(self):    
+        key = self.keypressed    
+        moveBack = None
+        if key == 'x':
             self.selectedMotor = 0
-        elif self.keypressed == 'y':
+        elif key == 'y':
             self.selectedMotor = 1
-        elif self.keypressed == 'z':
+        elif key == 'z':
             self.selectedMotor = 2
-        elif self.keypressed == '1':
+        elif key == '1':
             self.stepSize = STEPS_PER_MM * 0.001  # 1 um
-        elif self.keypressed == '2':
+        elif key == '2':
             self.stepSize = STEPS_PER_MM * 0.01
-        elif self.keypressed == '3':
+        elif key == '3':
             self.stepSize = STEPS_PER_MM * 0.1
-        elif self.keypressed == '4':
+        elif key == '4':
             self.stepSize = STEPS_PER_MM          # 1 mm
 
-        elif self.keypressed == '+':
+        elif key == '+':
             self.move_motor(self.selectedMotor, self.stepSize)
-        elif self.keypressed == '-':
+        elif key == '-':
             self.move_motor(self.selectedMotor, -self.stepSize)
-        elif self.keypressed == 'P':
+        elif key == 'P':
             self.paused =  not self.paused
             self.handle_pause( self.paused) 
             
-        elif ( self.keypressed == 'H'  or  self.keypressed == 'V' 
-              or self.keypressed == 'R' or self.keypressed == 'Z'):
+        elif ( key == 'H'  or  key == 'V' 
+              or key == 'R' or key == 'Z'):
+            
+            self.write_to_config()    
+
             self.paused = True
             self.handle_pause( self.paused) 
-            if self.keypressed == 'H':
+            cmd= None
+            if key == 'H':
                 cmd = "-hscan"
-            elif self.keypressed == 'V':
+                moveBack = [1,0,0]
+            elif key == 'V':
                 cmd = "-vscan"    
-            elif self.keypressed == 'R':
-                cmd = "-raster"    
-            elif self.keypressed == 'Z':
-                cmd = "-zscan"    
+                moveBack = [0,1,0]
+            elif key == 'R':
+                cmd = "-raster" 
+                moveBack = [1,1,0]   
+            elif key == 'Z':
+                cmd = "-zscan" 
+                moveBack = [0,0,1]   
                 
-            self.write_to_config()    
-            RS.scanner (cmd, self.bias1V) 
+            
+            if cmd:
+                RS.scanner (cmd, self.bias1V) 
+
+            
             self.paused = False
             self.handle_pause( self.paused)  
+            self.move_to_center( moveBack)
 
-        elif ( self.keypressed == 'C'):
+        elif ( key == 'C'):
             self.write_to_config()
 
         self.keypressed = ""     
@@ -246,8 +272,12 @@ class Controller:
         pos  = [0,0,0]
         real = [0,0,0]
         for i in range(3):
-            pos[i]  = self.motors[i].get_position()
-            real[i] = self.motors[i].get_real_value_from_device_unit(pos[i], 'DISTANCE')
+            try:
+                pos[i]  = self.motors[i].get_position()
+                real[i] = self.motors[i].get_real_value_from_device_unit(pos[i], 'DISTANCE')
+                self.center[i] = real[i]
+            except Exception as e:
+                print("!Exception:", e)
 
         self.ini['x'] = self.ini['x'].astype(str)
         self.ini['y'] = self.ini['y'].astype(str)
@@ -259,6 +289,9 @@ class Controller:
 
         # Write the updated DataFrame back to the file
         self.ini.to_csv(iniFile, index=False)
+        if VERBOSE:
+            print(f"Wrote: x={ self.ini.loc[0, 'x']} y={self.ini.loc[0, 'y']} z={self.ini.loc[0, 'z']} ")
+
         
 
     def open_motors(self):
@@ -273,7 +306,8 @@ class Controller:
 
     def close_motors(self):
         for i in range(3):
-            self.motors[i].close()
+            moveAxis.close(  self.motors[i] )
+            # self.motors[i].close()
     
     def open_t4u(self):
         if TEST_WITH_DUMMY_T4U:
@@ -343,8 +377,14 @@ class Controller:
             sum = A + B + C + D
             if sum == 0:
                 sum = .0001    # hack
-            xpos = ((C + D)  - (A + B )) / sum
-            ypos = ((A + D)  - (B + C )) / sum
+            #xpos = ((C + D)  - (A + B )) / sum
+            #ypos = ((A + D)  - (B + C )) / sum
+
+            # 5/28/24 - Switch to same format as used in Oper manuals, and
+            # make it agree with the T4U App!
+            xpos = -((A + D)  - (B + C )) / sum  # Additional minus sign reqd to match T4u App
+            ypos = -((A + B)  - (C + D )) / sum
+            
             barH = self.generate_bar_graph(xpos)
             barV = self.generate_bar_graph(ypos)
             pos= [None, None, None]

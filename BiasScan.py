@@ -22,7 +22,7 @@ startv = 0 ## -5
 endv   = 40.1
 stepv  = 0.1
 
-path_to_file = 'bscan.txt'
+path_to_file = 'txts/bscan.txt'
 
 iniFile = ("config/T4UParsPD.ini")
 ini = pd.read_csv(iniFile, header="infer")

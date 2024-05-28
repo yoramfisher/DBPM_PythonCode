@@ -13,7 +13,7 @@ cwd = os.getcwd()
 ##################
 #Number of scan points
 ###################
-cwd = os.getcwd()
+cwd = os.getcwd() + "txts" + "\\"
 T4Upars = np.loadtxt(r"T4UPars.ini",dtype = float, delimiter = None, comments = '%')
 numPoints = int(T4Upars[3])
 numRows = 0   # Set below based on file size

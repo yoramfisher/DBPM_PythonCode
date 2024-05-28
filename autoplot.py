@@ -79,12 +79,9 @@ def update_plot(frame):
         # plot based on scanType
         if handler.scanType == "hscan":  
             x = data.iloc[:,0]
-            y = A + B + C + D
-            
+           
             tCounts = A + B + C + D 
-            CD = (C + D) / tCounts
-            AB = (A + B) / tCounts
-            y = CD-AB
+            y = ((A+D) - (B+C)) / tCounts # As per DataSheet formula! for 'x'
             xlabel = 'X mm'
             ylabel = "Normalized Signal"
             
@@ -92,10 +89,8 @@ def update_plot(frame):
             x = data.iloc[:,1]
             
             tCounts = A + B + C + D 
-            AD = (A + D) / tCounts
-            BC = (B + C) / tCounts
     
-            y = AD-BC
+            y = ((A+B) - (C+D)) / tCounts # As per DataSheet formula! for 'y'
 
             xlabel = 'Y (mm)'
             ylabel = "Normalized Signal"

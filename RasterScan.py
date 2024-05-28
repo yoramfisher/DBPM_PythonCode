@@ -22,20 +22,9 @@ import pandas as pd
 #
 # Edit values below
 #
-iniFile = ("config/T4UParsPD.ini")
-ini = pd.read_csv(iniFile, header="infer")
 
-guesscenterX = ini.loc[0,"x"]
-guesscenterY = ini.loc[0,"y"]
-#centerZ = ini.loc[0,"z"]
-# if you want to be a winner and hard code your numbers
-#guesscenterX = 0.815
-#guesscenterY = 0.327
-centerZ = 3.15
+gdict = {}
 
-width = ini.loc[0,"width"]
-N_samples = ini.loc[0,"precision"]
-Vsupply = ini.loc[0,"s1v"]
 
 #make python recal values
 def initVal ():
@@ -45,6 +34,25 @@ def initVal ():
     global endx, endy
     global startz, endz, stepz
     global vscan, hscan, zscan
+    
+
+    iniFile = ("config/T4UParsPD.ini")
+    ini = pd.read_csv(iniFile, header="infer")
+
+    guesscenterX = ini.loc[0,"x"]
+    guesscenterY = ini.loc[0,"y"]
+    #centerZ = ini.loc[0,"z"]
+    # if you want to be a winner and hard code your numbers
+    #guesscenterX = 0.815
+    #guesscenterY = 0.327
+    centerZ = 3.15
+
+    width = ini.loc[0,"width"]
+    N_samples = ini.loc[0,"precision"]
+    Vsupply = ini.loc[0,"s1v"]
+
+
+
     vscan = 0
     hscan = 0
     zscan = 0
@@ -68,6 +76,9 @@ def initVal ():
     startz = 0
     endz = 10
     stepz = 1
+
+
+    return { 'cx':guesscenterX, 'cy':guesscenterY}
     
 
 path_to_file = ''
@@ -96,7 +107,7 @@ scantype = kScanTypeRaster # 2 = Serpentine, 2 = Raster
 xmotor = None
 ymotor = None
 zmotor = None
-verbose =0
+verbose =1
 
 
 
@@ -174,11 +185,11 @@ def scan( fname):
 
     bScanning = True
     if hscan:
-        starty = guesscenterY
+        starty = gdict['cy']
         stepy = 0
         endy = starty-1
     elif vscan:
-        startx = guesscenterX
+        startx = gdict['cx']
         stepx = 0
         endx = startx-1
     
@@ -314,7 +325,10 @@ def doConvert(fin,  convertType):
 
 def scanner (scanType, biasV):
     global hscan, vscan, zscan
-    initVal()
+    global gdict
+
+
+    gdict = initVal()
     print("RasterScan 19July2022 V 1.2.0")
     T4U_read.main("wr 3 0")
     working = 3
@@ -343,16 +357,16 @@ def scanner (scanType, biasV):
     if len(scanType) >= 1:
         if scanType == "-vscan":
             vscan = 1
-            f = open("vscan.txt", 'w')
+            f = open("txts/vscan.txt", 'w')
         elif scanType == "-hscan":
             hscan = 1    
-            f = open("hscan.txt", 'w')
+            f = open("txts/hscan.txt", 'w')
         elif scanType == "-zscan":
             zscan = 1
             hscan = 1
-            f = open("zscan.txt", 'w')
+            f = open("txts/zscan.txt", 'w')
         elif scanType == "-raster":
-            f = open('raster'+ str(biasV)+".txt", 'w')
+            f = open('txts/raster'+ str(biasV)+".txt", 'w')
 
 
         else:

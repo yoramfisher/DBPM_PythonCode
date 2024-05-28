@@ -9,7 +9,7 @@ import matplotlib
 from matplotlib import pyplot as plt
 import numpy as np
 import os
-cwd = os.getcwd()
+cwd = os.getcwd() + "txts" + "\\"
 tz = timezone("EST")
 dt = datetime.now(tz)
 dtfor = (dt.strftime("%Y_%m_%d_%H-%M-%S"))

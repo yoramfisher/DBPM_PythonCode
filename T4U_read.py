@@ -42,6 +42,12 @@ def init(port):
 
 
 def readreg(reg):
+   global thecomport
+   if thecomport == "":
+      iniFile = ("config/T4UParsPD.ini")
+      ini = pd.read_csv(iniFile, header="infer")
+      thecomport= ini.loc[0,"COM"]
+
    resp = sendCommand( thecomport, "rr {}".format(reg), 1 )
    #returns: rr>#:OK
    if verbose:
@@ -211,9 +217,6 @@ if __name__ == "__main__":
       ShowHelp()
       sys.exit()
 
-   iniFile = ("config/T4UParsPD.ini")
-   ini = pd.read_csv(iniFile, header="infer")
-   thecomport= ini.loc[0,"COM"]
    #thecomport = "com18"
 
    verbose =1
