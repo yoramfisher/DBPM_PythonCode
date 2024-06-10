@@ -105,12 +105,14 @@ def move(motor,  pos):
 
 
 def trysetup( sn ):
-    for nTries in range(5):
+    for nTries in range(10):
         try:
             return setup(sn)
         except Exception as e:        
             print("oops exception")    
-            time.sleep(1)
+            time.sleep(.5)
+
+    raise Exception(f"**** !! I Give up. Could not open motor {sn} !! *** ")        
         
         
 def setup( sn ):

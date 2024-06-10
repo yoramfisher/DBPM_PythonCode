@@ -149,6 +149,8 @@ def saveToDisk(f, x,y,vals):
           format(x,y, vals[0],vals[1], vals[2], vals[3] )
       f.write( s )
       f.flush() 
+      os.fsync(f)
+      
       print( s , end="") # debug info
 
 
@@ -323,12 +325,40 @@ def doConvert(fin,  convertType):
     fin.close()
     return 0
 
-def scanner (scanType, biasV):
+def scanner (scanType, biasV, **kwargs):
     global hscan, vscan, zscan
     global gdict
+    global startz, endz, stepz
+    global stepx, startx, endx
+    
+
 
 
     gdict = initVal()
+
+    # After initVal()...
+    for k,v in kwargs.items():
+         print(f"debug k = {k} v= {v}")
+         if k == "startZ":
+             startz = v
+
+         elif k == "endZ":
+             endz = v
+
+         elif k == "stepZ":
+             stepz = v
+             
+         elif k == "startX":
+             startx = v
+         elif k == "endX": 
+             endx = v
+         elif k == "stepX": 
+             stepx = v
+
+
+    if startz<0:
+        startz = 0
+        
     print("RasterScan 19July2022 V 1.2.0")
     T4U_read.main("wr 3 0")
     working = 3

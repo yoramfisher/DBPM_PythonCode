@@ -52,7 +52,9 @@ class FileUpdateHandler(FileSystemEventHandler):
 
         try:
             # Read the file, skipping the first 5 rows (header lines with '%')
+            ## was self.data = pd.read_csv(event.src_path, skiprows=5, header=None, delimiter=' ')
             self.data = pd.read_csv(event.src_path, skiprows=5, header=None, delimiter=' ')
+            ##self.dat = np.loadtxt( event.src_path,  dtype = float, delimiter = None, comments = '%',skiprows = 5, )
 
 
         except Exception as e:
@@ -70,7 +72,7 @@ def update_plot(frame):
         xlabel = ""
         ylabel = ""
         
-        if handler.scanType in ["hscan","vscan", "raster"]:  
+        if handler.scanType in ["hscan","vscan", "zscan", "raster"]:  
             A = data.iloc[:,2]
             B = data.iloc[:,3]
             C = data.iloc[:,4]
@@ -94,6 +96,33 @@ def update_plot(frame):
 
             xlabel = 'Y (mm)'
             ylabel = "Normalized Signal"
+
+          # plot based on scanType
+        if handler.scanType == "zscan":  
+            x = data.iloc[:,0]
+            z = data.iloc[:,1]
+
+            ## T4Upars = np.loadtxt(r"T4UPars.ini",dtype = float, delimiter = None, comments = '%')
+            numPoints = 20 # Hardcoded to 20 points per z- scan
+           
+            tCounts = A + B + C + D 
+            y = ((A+D) - (B+C)) / tCounts # As per DataSheet formula! for 'x'
+            xlabel = 'X mm'
+            ylabel = "(Z-Scan) Normalized Signal"  
+            numRows = data.shape[0]
+           
+             
+            i = 0
+            start = 0
+            
+            
+            while start + numPoints < numRows:
+                ###hPlot = figH.add_subplot(11,1,1)
+                plt.plot(x[start:start+numPoints], y[start:start+numPoints], label = str( z[start]) )
+                start += numPoints
+            
+            plt.legend(loc="upper left")
+            skipThePlot=True  
         
         if handler.scanType == "bscan":
             A = data.iloc[:,1]

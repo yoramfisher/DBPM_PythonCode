@@ -138,10 +138,15 @@ class Controller:
 
 
     def move_to_center(self, moveWhichAxis = [1,1,1]):
+
         for i in range(3):
             if self.center[i] and (moveWhichAxis[i] == 1):
+                if VERBOSE:
+                    print(f"Moving {self.motors[i]}  to cZ {self.center[i]}")
+
                 moveAxis.move( self.motors[i], self.center[i])
                 
+        time.sleep(1) # mght help ?        
 
     def handle_pause( self, p ):
         if p:
@@ -161,6 +166,7 @@ class Controller:
     def handle_keys(self):    
         key = self.keypressed    
         moveBack = None
+        args = {}
         if key == 'x':
             self.selectedMotor = 0
         elif key == 'y':
@@ -187,7 +193,7 @@ class Controller:
         elif ( key == 'H'  or  key == 'V' 
               or key == 'R' or key == 'Z'):
             
-            self.write_to_config()    
+            self.write_to_config()     # Will also set center[]
 
             self.paused = True
             self.handle_pause( self.paused) 
@@ -203,11 +209,19 @@ class Controller:
                 moveBack = [1,1,0]   
             elif key == 'Z':
                 cmd = "-zscan" 
-                moveBack = [0,0,1]   
+                moveBack = [1,0,1] 
+                endX = self.center[0] + 1
+                startX = self.center[0] - 1
+                stepX =  (endX - startX) / 20 # Hard code 20 steps!
+                # Scan Z +/- 2mm from CZ
+                # and scan X +/-1 mm from CX, keep num of points in X hard coded to 20 - as autoplot ASSUMES 20 :-(
+                args =  {"startZ" : self.center[2]-2, "endZ" : self.center[2]+2,  "stepZ": 1.0, 
+                         "startX": startX, "endX": endX,
+                          "stepX": stepX }  # Pass in arg for starting Z, and finer x scan.
                 
             
             if cmd:
-                RS.scanner (cmd, self.bias1V) 
+                RS.scanner (cmd, self.bias1V, **args) 
 
             
             self.paused = False
@@ -216,6 +230,16 @@ class Controller:
 
         elif ( key == 'C'):
             self.write_to_config()
+
+        elif ( key == 'c'):
+            self.ini = pd.read_csv(self.iniFilename, header="infer")
+            self.center = [self.ini.loc[0,"x"], self.ini.loc[0,"y"], self.ini.loc[0,"z"]]
+
+            self.move_to_center( moveWhichAxis=[1,1,1]) 
+
+
+        elif ( key == '?'):
+            self.showHelp()
 
         self.keypressed = ""     
 
@@ -320,6 +344,22 @@ class Controller:
             self.ser.close()
             self.ser = None
 
+
+    def showHelp(self):
+        print("Press 'x,y,z' to select a motor.   Press '1,2,3,4' to select step size of 1, 10, 100, 1000um")
+        print("   Use '+/-' to move selected motor.")
+        print("Press: ")
+        print("  C to set current position to be the new Center.")
+        print("  c move to Center - as defined in config/T4UParsD.ini")
+        print("  P to Pause / Unpause. When paused, motor and COM port are free'd")
+        print("  H to run an HScan from this position")
+        print("  V to run a VScan from this position")
+        print("  Z to run a Z-Scan from this position")
+        print("  R to run a RasterScan from this position")
+        print("  ? Show this help")
+        print("\n\n   Q to quit.")
+        
+    
     #
     #
     #
@@ -339,17 +379,7 @@ class Controller:
             
         
         # TODO: how many steps per mm?   use 1um, 10um , 100um, 1000um steps 
-        print("Press 'x,y,z' to select a motor.   Press '1,2,3,4' to select step size of 1, 10, 100, 1000um")
-        print("   Use '+/-' to move selected motor.")
-        print("Press: ")
-        print("  C to set current position to be the new Center.")
-        print("  P to Pause / Unpause. When paused, motor and COM port are free'd")
-        print("  H to run an HScan from this position")
-        print("  V to run a VScan from this position")
-        print("  Z to run a Z-Scan from this position")
-        print("  R to run a RasterScan from this position")
-        print("\n\n   Q to quit.")
-        
+        self.showHelp()
              
 
         while True:  
@@ -390,8 +420,12 @@ class Controller:
             pos= [None, None, None]
             real= [None, None, None]
             for i in range(3):
-                pos[i] = self.motors[i].get_position()
-                real[i] = self.motors[i].get_real_value_from_device_unit(pos[i], 'DISTANCE')
+                try:
+                    pos[i] = self.motors[i].get_position()
+                    real[i] = self.motors[i].get_real_value_from_device_unit(pos[i], 'DISTANCE')
+                except Exception as e:
+                    print("!ugh. Some sort of motor error. i =", i, e)    
+                    real[i] = -1
             
             smx = "[MX]" if self.selectedMotor == 0 else "mx"
             smy = "[MY]" if self.selectedMotor == 1 else "my"
