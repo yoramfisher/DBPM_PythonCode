@@ -93,8 +93,11 @@ def move(motor,  pos):
     pos is in mm
     """
 
+    if motor.__class__.__name__ == "DummyMotor":
+        steps = pos * 10
+    else:
  
-    steps = motor.get_device_unit_from_real_value(pos, 'DISTANCE') 
+        steps = motor.get_device_unit_from_real_value(pos, 'DISTANCE') 
     # move to position 100000
     ##print('Moving to {} ({:.3f}mm)...'.format(steps, pos))
     ##motor.move_to_position(100000)
@@ -148,6 +151,12 @@ def setup( sn ):
 
 
 def wait( motor ):
+    
+    
+    if motor.__class__.__name__ == "DummyMotor":
+        time.sleep(.1)
+        return
+    
     motor.clear_message_queue()
     while True:
         status = motor.convert_message(*motor.wait_for_message())['id']

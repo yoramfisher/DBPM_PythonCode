@@ -3,6 +3,8 @@
 # Align_Mode_On_Steroids == AMoS.py
 # Version 1.0 YF 5/16/2024
 # V 1.1 YF 5/17/2024
+# V 2.0 YF 6/12/2024  - Major rewrite - keep motors and T4U open 
+
 #  Add H, V, and R commands.
 # Write four values on one line, and remove LF so can update value w/o scrolling
 # Add X,Y,Z to select motor to move.   1,2,3 to select step size, use +/- to move selected motor
@@ -20,11 +22,15 @@ import time
 #import all functions from T4U read
 import pandas as pd 
 import keyboard
+import pygetwindow as gw
 
 from math import fsum 
 
 import RasterScan as RS
 import random
+import STUtility as STU
+import RigolDP712 as Rigol
+
 
 # Requires
 # pip install keyboard
@@ -33,25 +39,35 @@ VERBOSE = 1
 NUM_TO_AVE = 100
 
 # MAKE SURE THESE ARE SET TO ZERO FOR REAL DATA!
-TEST_WITH_DUMMY_MOTORS = 0
-TEST_WITH_DUMMY_T4U = 0
+TEST_WITH_DUMMY_MOTORS = 1
+TEST_WITH_DUMMY_T4U = 1
 
 
 STEPS_PER_MM = 2.1739e6
 
+if TEST_WITH_DUMMY_MOTORS:
+    STEPS_PER_MM = 100
+    
 
 class DummyMotor:
     def __init__(self, name) -> None:
         self.name = name
         self.pos = 1.0
     def get_position(self):
-        return 1000
+        return self.pos
+    def move_to_position(self,steps):
+        self.pos = steps
     def get_real_value_from_device_unit(self, pos , whatevs):
         return self.pos   
     def move_relative(self, dx):
         self.pos += dx
     def close(self):
         self.IsClosed = True    
+    def stop_polling(self):
+            pass
+    def disconnect(self):
+            pass
+             
     
 class DummyT4U:
     def __init__(self) -> None:
@@ -60,11 +76,29 @@ class DummyT4U:
         pass
     def close(self, ):
         pass
-        
+    def read_until(self):
+        return  b"ok"
+    def flushInput(self):
+        pass
         
 
-class Controller:
+class DummyRigol:
+    def __init__(self) -> None:
+        pass
+    def read_until(self):
+        return  b"ok"
+    def flushInput(self):
+        pass
+    def write(self, x):
+        pass
+    def close(self, ):
+        pass
+        
+
+class Controller(STU.IRunnable, STU.IPlottable):
     def __init__(self, iniFilename="") -> None:
+         # Call the __init__ method of the base class
+        super().__init__()
         self.iniFilename = iniFilename
         self.quit = False
         self.paused = False
@@ -72,6 +106,7 @@ class Controller:
         self.selectedMotor = 0
         self.stepSize = 10
         self.ser = None
+        self.Rigol_serialPort = None
         self.motors = [None, None, None]
         keyboard.on_press(self.on_key_press)
     
@@ -80,22 +115,41 @@ class Controller:
         self.bias1V = float(self.ini.loc[0,"s1v"])
         self.bias2V = float(self.ini.loc[0,"s2v"])
         self.center = [None, None, None]
+        self.scanner = None
         
         if TEST_WITH_DUMMY_T4U:
             self.x = 0
             self.y = 0
             self.dx = .011
             self.dy = .022
-            
     
     
-    def on_key_press(self, event):        
-        if event.name == 'Q':
-            keyboard.unhook_all()
-            self.quit = True
-            
-        self.keypressed = event.name
-            
+    def is_terminal_focused(self):
+        try:
+            # Get the active window title
+            active_window = gw.getActiveWindow()
+            if active_window:
+                active_title = active_window.title.lower()
+                
+                # Check if the active window title matches your terminal or IDE
+                terminal_titles = ["amos.py"]
+                return any(title in active_title for title in terminal_titles)
+        except Exception as e:
+            print(f"Error checking window focus: {e}")
+        return False        
+      
+     
+    def on_key_press(self, event):  
+        if self.is_terminal_focused():      
+            if event.name == 'Q':
+                keyboard.unhook_all()
+                self.quit = True
+                
+            elif event.name == 'q':
+                self.interrupted = True    
+                
+            self.keypressed = event.name
+                
     def read_t4u(self):
 
         if TEST_WITH_DUMMY_T4U:
@@ -115,7 +169,7 @@ class Controller:
             return    (A, B, C, D)
         
         if self.ser:
-            resp = T4U_read.send( self.ser, "read", 1 )
+            resp =  T4U_read.send(self.ser, "read", 1 )
             #returns: read>173, 247, 298, 216:OK
             if len(resp)>5:
                 a = resp[5:] # remove 'read>'
@@ -142,7 +196,7 @@ class Controller:
         for i in range(3):
             if self.center[i] and (moveWhichAxis[i] == 1):
                 if VERBOSE:
-                    print(f"Moving {self.motors[i]}  to cZ {self.center[i]}")
+                    print(f"Moving: {self.motors[i]}  to center: {self.center[i]}")
 
                 moveAxis.move( self.motors[i], self.center[i])
                 
@@ -167,7 +221,9 @@ class Controller:
         key = self.keypressed    
         moveBack = None
         args = {}
-        if key == 'x':
+        if key == 'q':
+            self.interrupted = True
+        elif key == 'x':
             self.selectedMotor = 0
         elif key == 'y':
             self.selectedMotor = 1
@@ -195,8 +251,8 @@ class Controller:
             
             self.write_to_config()     # Will also set center[]
 
-            self.paused = True
-            self.handle_pause( self.paused) 
+            #self.paused = True
+            #self.handle_pause( self.paused) 
             cmd= None
             if key == 'H':
                 cmd = "-hscan"
@@ -221,11 +277,17 @@ class Controller:
                 
             
             if cmd:
-                RS.scanner (cmd, self.bias1V, **args) 
+                self.cmd = cmd
+                self.bias = self.bias1V
+                self.args = args
+                if self.scanner == None:
+                    self.scanner = RS.STScanner( self )
+                
+                self.scanner.scanner_ex() 
 
             
-            self.paused = False
-            self.handle_pause( self.paused)  
+            #self.paused = False
+            #self.handle_pause( self.paused)  
             self.move_to_center( moveBack)
 
         elif ( key == 'C'):
@@ -345,6 +407,15 @@ class Controller:
             self.ser = None
 
 
+    def open_Rigol(self):
+        if TEST_WITH_DUMMY_T4U:
+            self.Rigol_serialPort = DummyRigol()
+        else:    
+            self.Rigol_serialPort = Rigol.Rigol_tryConnect()
+
+      
+  
+  
     def showHelp(self):
         print("Press 'x,y,z' to select a motor.   Press '1,2,3,4' to select step size of 1, 10, 100, 1000um")
         print("   Use '+/-' to move selected motor.")
@@ -357,6 +428,8 @@ class Controller:
         print("  Z to run a Z-Scan from this position")
         print("  R to run a RasterScan from this position")
         print("  ? Show this help")
+        print("  q to Abort a routine")
+        
         print("\n\n   Q to quit.")
         
     
@@ -388,6 +461,8 @@ class Controller:
             if self.quit:
                 break
 
+            self.ticklePlot()     # update to keep it interactive
+            
             if self.paused:
                 continue
                 
@@ -447,6 +522,7 @@ if __name__ == "__main__":
     C = Controller( iniFilename = iniFile )
     C.open_motors()
     C.open_t4u()
+    C.open_Rigol()
     
     
     argv = sys.argv

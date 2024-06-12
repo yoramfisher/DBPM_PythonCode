@@ -9,7 +9,7 @@ import time
 import sys
 import pandas as pd
 
-verbose = 0
+verbose = 1
 thecomport = ""
 
 
@@ -58,6 +58,22 @@ def readreg(reg):
    res = int(resp[a:b])
    return res
 
+
+def readreg_ex(reg, controller):
+
+   if  controller.ser.__class__.__name__ == "DummyT4U":
+      return 0
+   
+   resp = send( controller.ser,  "rr {}".format(reg), 1 ) 
+   #returns: rr>#:OK
+   if verbose:
+      print(resp)
+   
+   a = resp.index('>') +1
+   b = resp.index(':')
+   res = int(resp[a:b])
+   return res
+
 def readv():
    resp = sendCommand( thecomport, "read", 1 )
    #returns: read>173, 247, 298, 216:OK
@@ -73,6 +89,8 @@ def readv():
    res = [float(x) for x in c]
   
    return res
+
+
 #BWM Mod ReadV for Align mode
 def readvl():
    resp = sendCommand( thecomport, "read", 1 )
@@ -98,7 +116,7 @@ def readvl():
 #######################
 def readvlwc(comport):
    
-   if comport is None:
+   if comport.__class__.__name__ == "DummyT4U":
       return { "ch1": 1000, "ch2":2000, "ch3":1500, "ch4":2100 } # simulated data
    
    resp = sendCommand( comport, "read", 1 )
