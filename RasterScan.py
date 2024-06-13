@@ -175,12 +175,10 @@ class STScanner:
             if self.zscan:
                 self.move_zmotor( z )
 
-            tvals = T4U_read.readvlwc( self.controller.ser) #
-            vals = [ tvals["ch1"], tvals["ch2"], tvals["ch3"], tvals["ch4"] ]
-            
-            if self.controller.ser.__class__.__name__ == "DummyT4U":
-                vals = [1000+x+y, 1000+x-y, 1000, 1000]
-
+            vals = T4U_read.readvlwc( self.controller.ser)
+            ##vals = [ tvals["ch1"], tvals["ch2"], tvals["ch3"], tvals["ch4"] ]
+           
+        
             if self.zscan:
                 self.saveToDisk(x,z,vals)    
             else:    
@@ -335,7 +333,7 @@ class STScanner:
         print("RasterScan 12JUN2024 V 1.3.0.  Running", scanType)
         print("   press 'q' to abort ")
         
-        T4U_read.send( self.controller.ser, "wr 3 0", 0) 
+        T4U_read.send( self.controller.ser, "wr 3 0", 1) 
         
         Rigol_SetVoltage(self.controller.Rigol_serialPort , biasV) 
             

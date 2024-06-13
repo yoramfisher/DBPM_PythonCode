@@ -10,7 +10,7 @@ import sys
 import pandas as pd
 import random
 
-verbose = 1
+verbose = 0
 thecomport = ""
 
 
@@ -115,12 +115,12 @@ def readvl():
 ######################
 #BWM New feature for passing comport in read command 6/15/23
 #######################
-def readvlwc(comport):
+def readvlwc(ser):
    
-   if comport.__class__.__name__ == "DummyT4U":
+   if ser.__class__.__name__ == "DummyT4U":
       return { "ch1": random.randint(0,500)+1000, "ch2":random.randint(0,500)+2000, "ch3":1500, "ch4":2100 } # simulated data
    
-   resp = sendCommand( comport, "read", 1 )
+   resp = send( ser, "read", 1 )
    #returns: read>173, 247, 298, 216:OK
    if verbose:
       print(resp)
@@ -128,16 +128,17 @@ def readvlwc(comport):
    a = resp[5:] # remove 'read>'
    b = a.split(':')
    c= b[0].split(',')
-
+  
    # Convert Float String List to Float Values
    # Using float() + list comprehension
-   Ch_list = {}
-   Ch_list["ch1"] = c[0]
-   Ch_list["ch2"] = c[1]
-   Ch_list["ch3"] = c[2]
-   Ch_list["ch4"] = c[3]
+   # Ch_list = {}
+   # Ch_list["ch1"] = c[0]
+   # Ch_list["ch2"] = c[1]
+   # Ch_list["ch3"] = c[2]
+   # Ch_list["ch4"] = c[3]
 
-   return Ch_list
+   if len(c) == 4:
+      return  ( int(c[0]), int(c[1]), int(c[2]), int(c[3]) )
 
 def send(ser,command,bQuery):
     """ returns result as string
@@ -238,7 +239,7 @@ if __name__ == "__main__":
 
    #thecomport = "com18"
 
-   verbose =1
+   verbose =0
    argv = sys.argv
 
    #
