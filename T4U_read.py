@@ -8,6 +8,7 @@ import serial
 import time
 import sys
 import pandas as pd
+import random
 
 verbose = 1
 thecomport = ""
@@ -117,7 +118,7 @@ def readvl():
 def readvlwc(comport):
    
    if comport.__class__.__name__ == "DummyT4U":
-      return { "ch1": 1000, "ch2":2000, "ch3":1500, "ch4":2100 } # simulated data
+      return { "ch1": random.randint(0,500)+1000, "ch2":random.randint(0,500)+2000, "ch3":1500, "ch4":2100 } # simulated data
    
    resp = sendCommand( comport, "read", 1 )
    #returns: read>173, 247, 298, 216:OK

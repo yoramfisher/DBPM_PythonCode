@@ -94,7 +94,7 @@ def move(motor,  pos):
     """
 
     if motor.__class__.__name__ == "DummyMotor":
-        steps = pos * 10
+        steps = pos * 1
     else:
  
         steps = motor.get_device_unit_from_real_value(pos, 'DISTANCE') 

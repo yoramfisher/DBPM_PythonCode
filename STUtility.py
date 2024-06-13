@@ -66,10 +66,13 @@ class IPlottable:
         elif self.cmd == "-zscan":  
             x = arr[0]
             z = arr[1]
+            
             if not self.zlist:
                 self.zlist.append(z)
             elif self.zlist[-1]  != z:
-                self.zlist.append(z)   
+                self.zlist.append(z)  
+                if self.numPoints == 0:
+                    self.numPoints= len(self.xtrace) 
                 
             tCounts = A + B + C + D 
             if tCounts:
@@ -77,12 +80,15 @@ class IPlottable:
             ylabel = "(Z-scan) Normalized Signal"
             handleZSpecial = True
             
+        elif self.cmd == "-raster":
+            raise Exception("Not Yet Implemented")      
           
 
         if reset:
             self.xtrace = []
             self.ytrace = []
             self.zlist = []
+            self.numPoints = 0
             self.ax.clear()  # Clear the previous plot
             return
 
@@ -98,20 +104,23 @@ class IPlottable:
             prevX = -9999
             previ = 0
             zi = 0
+            xstripe = self.numPoints
          
-            
-             # a dumb brute force way to do it...    
-            for i in range(len(self.xtrace)):
-                x = self.xtrace[i]
-                if x < prevX:
-                    
-                    self.ax.plot( self.xtrace[previ:i],self.ytrace[previ:i], label = str( self.zlist[zi] ) )
-                    
-                    previ = i
-                    zi += 1
+            if self.numPoints == 0:
+                xstripe = len(self.xtrace)
+                
+            # a dumb brute force way to do it...  
+            nexti = 0
+            while nexti < len( self.xtrace):
+                nexti += xstripe
+                if nexti >= len(self.xtrace):
+                    nexti = len(self.xtrace)
+                self.ax.plot( self.xtrace[previ:nexti],self.ytrace[previ:nexti], label = str( self.zlist[zi] ) )
+                previ = nexti 
+                zi += 1
                     
                 
-                prevX = x
+             
                 
                     
         else:  
