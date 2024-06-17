@@ -12,6 +12,7 @@ import sys
 #
 
 MAX_CLIP_VAL = 1.0
+SHOW_THE_STREETS = 1
 
 
 tz = timezone("EST")
@@ -36,6 +37,17 @@ def plot_Raster(dSN,volts, tMax=None):
 	Y_dat = f[:,1]-np.min(f[:,1])
 	Z_dat = Ztot/fMax
 
+	if SHOW_THE_STREETS:
+		A = np.array(f[:,2]) 
+		B = np.array(f[:,3]) 
+		C = np.array(f[:,4]) 
+		D = np.array(f[:,5]) 
+		xx = abs(((C+D)-(A+B))/fMax)
+		yy = abs(((A+D)-(B+C))/fMax)
+     
+		Z_dat = (xx + yy) / 2.0
+     
+	
 # Convert from pandas dataframes to numpy arrays
 	X, Y, Z, = np.array([]), np.array([]), np.array([])
 	for i in range(len(X_dat)):
@@ -49,7 +61,8 @@ def plot_Raster(dSN,volts, tMax=None):
 
 
 
-
+	
+     
 # Interpolate for plotting
 	zi = griddata((X, Y), Z, (xi[None,:], yi[:,None]), method='cubic')
 
