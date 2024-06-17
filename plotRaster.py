@@ -38,14 +38,16 @@ def plot_Raster(dSN,volts, tMax=None):
 	Z_dat = Ztot/fMax
 
 	if SHOW_THE_STREETS:
+		from matplotlib.colors import LinearSegmentedColormap
+  
 		A = np.array(f[:,2]) 
 		B = np.array(f[:,3]) 
 		C = np.array(f[:,4]) 
 		D = np.array(f[:,5]) 
 		xx = abs(((C+D)-(A+B))/fMax)
 		yy = abs(((A+D)-(B+C))/fMax)
-     
-		Z_dat = (xx + yy) / 2.0
+		Z_dat = (xx  + yy) / 2.0
+  
      
 	
 # Convert from pandas dataframes to numpy arrays
@@ -59,16 +61,23 @@ def plot_Raster(dSN,volts, tMax=None):
 	xi = np.linspace(X.min(), X.max(), 1000)
 	yi = np.linspace(Y.min(), Y.max(), 1000)
 
-
-
 	
      
 # Interpolate for plotting
 	zi = griddata((X, Y), Z, (xi[None,:], yi[:,None]), method='cubic')
 
-
-# try to clip zi
+# clip zi
 	zic = np.clip(zi, a_min = 0, a_max = MAX_CLIP_VAL)
+
+	if SHOW_THE_STREETS:
+
+		plt.contourf(xi, yi, zi, 15, cmap=plt.cm.viridis )
+		cbar = plt.colorbar()
+		plt.show()
+
+		return
+
+	
 
 # I control the range of my colorbar by removing data 
 # outside of my range of interest
