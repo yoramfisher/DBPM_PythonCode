@@ -35,7 +35,7 @@ import RigolDP712 as Rigol
 
 # Requires
 # pip install keyboard
-# pip install pywinauto
+# pip install  pyautogui
 VERBOSE = 1
 
 NUM_TO_AVE = 100
@@ -44,7 +44,8 @@ NUM_TO_AVE = 100
 TEST_WITH_DUMMY_MOTORS = 1
 TEST_WITH_DUMMY_T4U = 1
 
-USE_PYWINAUTO = 1
+
+USE_PYAUTOGUI = 1
 
 
 STEPS_PER_MM = 2.1739e6
@@ -52,9 +53,12 @@ STEPS_PER_MM = 2.1739e6
 if TEST_WITH_DUMMY_MOTORS:
     STEPS_PER_MM = 100
 
-if USE_PYWINAUTO:
-    from pywinauto.application import Application
-        
+if USE_PYAUTOGUI:
+    import pyautogui
+
+
+    # Set the global timeout to 
+    
 
 class DummyMotor:
     def __init__(self, name) -> None:
@@ -517,33 +521,40 @@ class Controller(STU.IRunnable, STU.IPlottable):
                     f"{smx}:{real[0]:8.4f}  {smy}:{real[1]:8.4f}   {smz}:{real[2]:8.4f}        \r", end="")
                 
                 
-        
+#
+# Call this function to click the 'Turn Off' button
+# in the X-BEAM App
+#         
+def TurnOffTheHighVoltage():
+    # Activate the window (bring it to the foreground)
+    window = gw.getWindowsWithTitle("X-BEAM Uility Version 0.92")[0]  # sic
+    window.activate()  # Activate the window
+
+    # Wait for the window to be active (with a small delay to ensure it's activated)
+    time.sleep(1)
+
     
+    # Set coordinate mode to client area
+    # pyautogui operates in screen coordinates by default, so we can calculate the client area coordinates relative to the window
+
+    # Move the mouse to the desired coordinates relative to the client area
+    window_left, window_top = window.left, window.top
+    client_x, client_y = 197, 340  # Client area coordinates
+    pyautogui.moveTo(window_left + client_x, window_top + client_y)  # Move mouse to the client area position
+
+    # Click at the current mouse position
+    pyautogui.click()
+
             
 #
 #
 #
 if __name__ == "__main__":
+ 
+ 
+    if USE_PYAUTOGUI:
+           TurnOffTheHighVoltage()
     
-    
-    if USE_PYWINAUTO:
-        # Start Notepad
-        # Connect to the running Calculator
-        app = Application(backend="uia").connect(title="Calculator")
-
-        # Get the main Calculator window
-        calc_window = app.window(title="Calculator")
-        
-        calc_window.print_control_identifiers()
-        
-        
-        # Find the "7" button and click it
-        seven_button = calc_window.child_window(auto_id="num7Button", control_type="Button")
-        seven_button.click()
-        
-        exit()
-        
-
     iniFile = ("config/T4UParsPD.ini")
     C = Controller( iniFilename = iniFile )
     C.open_motors()
@@ -555,5 +566,7 @@ if __name__ == "__main__":
     C.main(argv[1:])   # Use 'q' . Dont ctrl-c out of this!
     
     C.close_motors()
+
+
     
         
