@@ -4,6 +4,7 @@
 # Version 1.0 YF 5/16/2024
 # V 1.1 YF 5/17/2024
 # V 2.0 YF 6/12/2024  - Major rewrite - keep motors and T4U open 
+# V 3.0 YF 10/10/24 Use pywinauto to control the XOS Utility Software, to turn off HV after a raster is complete.
 
 #  Add H, V, and R commands.
 # Write four values on one line, and remove LF so can update value w/o scrolling
@@ -34,20 +35,26 @@ import RigolDP712 as Rigol
 
 # Requires
 # pip install keyboard
+# pip install pywinauto
 VERBOSE = 1
 
 NUM_TO_AVE = 100
 
 # MAKE SURE THESE ARE SET TO ZERO FOR REAL DATA!
-TEST_WITH_DUMMY_MOTORS = 0
-TEST_WITH_DUMMY_T4U = 0
+TEST_WITH_DUMMY_MOTORS = 1
+TEST_WITH_DUMMY_T4U = 1
+
+USE_PYWINAUTO = 1
 
 
 STEPS_PER_MM = 2.1739e6
 
 if TEST_WITH_DUMMY_MOTORS:
     STEPS_PER_MM = 100
-    
+
+if USE_PYWINAUTO:
+    from pywinauto.application import Application
+        
 
 class DummyMotor:
     def __init__(self, name) -> None:
@@ -518,6 +525,25 @@ class Controller(STU.IRunnable, STU.IPlottable):
 #
 if __name__ == "__main__":
     
+    
+    if USE_PYWINAUTO:
+        # Start Notepad
+        # Connect to the running Calculator
+        app = Application(backend="uia").connect(title="Calculator")
+
+        # Get the main Calculator window
+        calc_window = app.window(title="Calculator")
+        
+        calc_window.print_control_identifiers()
+        
+        
+        # Find the "7" button and click it
+        seven_button = calc_window.child_window(auto_id="num7Button", control_type="Button")
+        seven_button.click()
+        
+        exit()
+        
+
     iniFile = ("config/T4UParsPD.ini")
     C = Controller( iniFilename = iniFile )
     C.open_motors()

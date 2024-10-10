@@ -3,7 +3,7 @@ import os
 from pprint import pprint
 import time
 
-if 1:
+if 0:
     from msl.equipment import EquipmentRecord, ConnectionRecord, Backend
     from msl.equipment.resources.thorlabs import MotionControl
 
@@ -17,7 +17,7 @@ Usage ~ [X|Y|Z] abs_pos_in_mm [-verbose]
 
 # As seen by CCD
 # X is Left/Right,  0 on the Left
-# Y is Up/Down,  0 is on bottom
+# Y is Up/Down,  0 is on bottomq
 # Z is toward X-ray source, 0 is furthest.
 #
 #  Important that these serial numbers match the axes.
